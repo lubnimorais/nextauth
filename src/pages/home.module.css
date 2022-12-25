@@ -1,0 +1,14 @@
+.container {
+  width: 100%;
+  height: 100vh;
+
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.boxForm {
+  display: flex;
+  flex-direction: column;
+}
