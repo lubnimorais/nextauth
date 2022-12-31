@@ -8,7 +8,6 @@ type ICredencial =  {
 type IAuthContextData = {
   signIn({email, password}: ICredencial): Promise<void>;
   isAuthenticated: boolean;
-
 }
 
 interface IAuthProviderProps {
