@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, ReactNode, useState } from "react";
+import { createContext, useCallback, useContext, ReactNode, useState, useEffect } from "react";
 import Router from "next/router";
 
-import { setCookie } from 'nookies';
+import { setCookie, parseCookies, destroyCookie } from 'nookies';
 
 import { api } from "../services/api";
 
@@ -11,13 +11,13 @@ type IUser = {
   roles: Array<string>;
 }
 
-type ICredencial =  {
+type ICredencial = {
   email: string;
   password: string;
 }
 
 type IAuthContextData = {
-  signIn({email, password}: ICredencial): Promise<void>;
+  signIn({ email, password }: ICredencial): Promise<void>;
   user: IUser | undefined;
   isAuthenticated: boolean;
 }
@@ -26,21 +26,29 @@ interface IAuthProviderProps {
   children: ReactNode;
 }
 
+
+function signOut() {
+  destroyCookie(undefined, 'nextauth.token');
+  destroyCookie(undefined, 'nextauth.refreshToken');
+
+  Router.push('/');
+}
+
 const AuthContext = createContext({} as IAuthContextData);
 
-const AuthProvider = ({children}: IAuthProviderProps) => {
-  
+const AuthProvider = ({ children }: IAuthProviderProps) => {
+
   const [user, setUser] = useState<IUser>();
-  
+
   const isAuthenticated = !!user;
 
-  const signIn = useCallback(async ({email, password}: ICredencial) => {
+  const signIn = useCallback(async ({ email, password }: ICredencial) => {
     try {
       const response = await api.post('/sessions', {
         email,
         password
       })
-  
+
       const { token, refreshToken, permissions, roles } = response.data;
 
       // NOTE - maxAge: quanto tempo queremos armazenar, manter salvo no navegador
@@ -61,16 +69,35 @@ const AuthProvider = ({children}: IAuthProviderProps) => {
         path: '/'
       });
 
-
       setUser({
         email,
         permissions,
         roles
       })
 
+      api.defaults.headers['Authorization'] = `Bearer ${token}`;
+
       Router.push('/dashboard')
     } catch (err) {
       console.log(err);
+    }
+  }, [])
+
+  useEffect(() => {
+    const { 'nextauth.token': token } = parseCookies();
+
+    if (token) {
+      api.get('/me').then(response => {
+        const { email, permissions, roles } = response.data
+
+        setUser({
+          email,
+          permissions,
+          roles
+        })
+      }).catch(() => {
+        signOut();
+      })
     }
   }, [])
 
@@ -91,4 +118,4 @@ function useAuth() {
   return context;
 }
 
-export { AuthProvider, useAuth };
+export { AuthProvider, useAuth, signOut };
