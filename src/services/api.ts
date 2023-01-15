@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
-import { destroyCookie, parseCookies, setCookie } from 'nookies';
+import { GetServerSidePropsContext } from 'next';
+import { parseCookies, setCookie } from 'nookies';
 
 import { signOut } from '../hook/auth';
 import { AuthTokenError } from './errors/AuthTokenError';
@@ -12,7 +13,7 @@ interface AxiosErrorResponse {
   code?: string;
 }
 
-function setupAPIClient(context = undefined) {  
+function setupAPIClient(context?: GetServerSidePropsContext) {  
   let cookies = parseCookies(context);
 
   const api = axios.create({

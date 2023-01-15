@@ -1,12 +1,21 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
+
 import { useAuth } from "../hook/auth"
+
 import { setupAPIClient } from "../services/api";
 import { api } from "../services/apiClient";
+
+import { Can } from "../components/Can";
 
 import { withSSRAuth } from "../utils/withSSRAuth";
 
 export default function Dashboard() {
-  const { user } = useAuth()
+  const { user, signOut, broadcastAuth } = useAuth()
+
+  const handleSignOut = useCallback(() => {
+    broadcastAuth.current.postMessage("signOut");
+    signOut();
+  }, [broadcastAuth, signOut])
 
   useEffect(() => {
     api.get('/me').then(response => {
@@ -15,7 +24,15 @@ export default function Dashboard() {
   }, [])
 
   return (
-    <h1>Dashboard {user?.email}</h1>
+    <>
+      <h1>Dashboard {user?.email}</h1>
+
+      <button onClick={handleSignOut}>Sign Out</button>
+
+      <Can permissions={['metrics.list']}>
+        <div>Métricas</div>
+      </Can>
+    </>
   )
 }
 
@@ -29,5 +46,3 @@ export const getServerSideProps = withSSRAuth(async (context) => {
     props: {}
   }
 });
-
-export { Dashboard }

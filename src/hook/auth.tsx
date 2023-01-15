@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, ReactNode, useState, useEffect } from "react";
+import { createContext, useCallback, useContext, ReactNode, useState, useEffect, useRef, MutableRefObject } from "react";
 import Router from "next/router";
 
 import { setCookie, parseCookies, destroyCookie } from 'nookies';
@@ -17,17 +17,20 @@ type ICredencial = {
 }
 
 type IAuthContextData = {
-  signIn({ email, password }: ICredencial): Promise<void>;
+  signIn: ({ email, password }: ICredencial) => Promise<void>;
+  signOut: () => void;
   user: IUser | undefined;
   isAuthenticated: boolean;
+  broadcastAuth: MutableRefObject<BroadcastChannel>;
 }
 
 interface IAuthProviderProps {
   children: ReactNode;
 }
 
+// let authChannel: BroadcastChannel;
 
-function signOut() {
+function signOut(): void {
   destroyCookie(undefined, 'nextauth.token');
   destroyCookie(undefined, 'nextauth.refreshToken');
 
@@ -37,6 +40,7 @@ function signOut() {
 const AuthContext = createContext({} as IAuthContextData);
 
 const AuthProvider = ({ children }: IAuthProviderProps) => {
+  const broadcastAuth = useRef<BroadcastChannel>(null);
 
   const [user, setUser] = useState<IUser>();
 
@@ -77,11 +81,26 @@ const AuthProvider = ({ children }: IAuthProviderProps) => {
 
       api.defaults.headers['Authorization'] = `Bearer ${token}`;
 
-      Router.push('/dashboard')
+      Router.push('/dashboard');
     } catch (err) {
       console.log(err);
     }
-  }, [])
+  }, []);
+
+  useEffect(() => {
+    broadcastAuth.current = new BroadcastChannel("auth")
+
+    broadcastAuth.current.onmessage = (message) => {
+      switch (message.data) {
+        case 'signOut':
+          signOut();
+          break;
+        default:
+          break;
+      }
+    }  
+  }, [broadcastAuth]);
+
 
   useEffect(() => {
     const { 'nextauth.token': token } = parseCookies();
@@ -101,11 +120,11 @@ const AuthProvider = ({ children }: IAuthProviderProps) => {
     }
   }, [])
 
-  return (
-    <AuthContext.Provider value={{ signIn, isAuthenticated, user }}>
-      {children}
-    </AuthContext.Provider>
-  )
+return (
+  <AuthContext.Provider value={{ signIn, signOut, isAuthenticated, user, broadcastAuth }}>
+    {children}
+  </AuthContext.Provider>
+)
 }
 
 function useAuth() {
